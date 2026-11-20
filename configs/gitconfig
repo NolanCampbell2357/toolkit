@@ -1,0 +1,4 @@
+[alias]
+	glog = log --graph --oneline
+	update = !git fetch && git rebase origin/$(git symbolic-ref --short HEAD)
+	refresh = !uv run --project \"$HOME/repos/toolkit\" python \"$HOME/repos/toolkit/devops/git_refresh.py\"

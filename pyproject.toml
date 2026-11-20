@@ -1,0 +1,11 @@
+[build-system] 
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nolan-campbell-toolkit"
+version = "0.1.0"
+readme = "README.md"
+requires-python = ">=3.13"
+[tool.uv]
+package = false
