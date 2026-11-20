@@ -4,7 +4,7 @@ How to set up this toolkit on a new machine.
 
 ## Prerequisites
 
-- macOS with zsh
+- macOS
 - [Homebrew](https://brew.sh)
 - git
 - [uv](https://docs.astral.sh/uv/) (`brew install uv`). It manages Python, so a separate Python install isn't needed.
@@ -40,17 +40,7 @@ git config --global include.path ~/repos/toolkit/configs/gitconfig
 
 Check it with `git glog` and `git refresh` (run the latter inside any git repo).
 
-## 4. Shell config
-
-Back up your existing `~/.zshrc`, then symlink the repo's version:
-
-```sh
-[ -f ~/.zshrc ] && mv ~/.zshrc ~/.zshrc.bak
-ln -s ~/repos/toolkit/configs/zshrc ~/.zshrc
-source ~/.zshrc
-```
-
-## 5. Claude Code skills, agents, commands, rules, and output styles
+## 4. Claude Code skills, agents, commands, rules, and output styles
 
 ```sh
 ./scripts/link-claude.sh
@@ -58,7 +48,7 @@ source ~/.zshrc
 
 This symlinks each item in `.claude/{skills,agents,commands,rules,output-styles}` into `~/.claude/`. Hook scripts in `.claude/hooks/` aren't linked; register them in a `settings.json`. Re-run it after adding new ones. `./scripts/unlink-claude.sh` removes the links.
 
-## 6. MCP servers
+## 5. MCP servers
 
 MCP server configs live in `mcps/`. It's empty for now. Document setup steps for each server here as you add them.
 

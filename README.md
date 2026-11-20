@@ -43,7 +43,7 @@ Back up any existing file before linking over it.
 
 ## Devops scripts
 
-Python scripts in `devops/` run in this repo's uv environment (`uv sync` to set it up). Expose them as git aliases in `configs/gitconfig`. For example, `git refresh` runs `devops/git_refresh.py` against the current repo.
+Python scripts in `devops/` run in this repo's uv environment (`uv sync` to set it up). Expose them as git aliases in `configs/gitconfig`. For example, `git refresh` runs `devops/git_refresh.py`, which updates every repo in `~/repos` (fetch and prune, fast-forward behind branches, reset rewritten ones, delete branches whose upstream is gone, report the rest). Use `git refresh --dry-run` to preview, or pass a different folder.
 
 ```sh
 uv run python devops/git_refresh.py
