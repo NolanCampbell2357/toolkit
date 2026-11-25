@@ -19,6 +19,7 @@ from typing import Any
 
 import ntcore
 from mcp.server.mcpserver import MCPServer
+from mcp.server.mcpserver.exceptions import ToolError
 
 DEFAULT_TEAM = 2357
 
@@ -89,7 +90,7 @@ def _jsonable(v: Any) -> Any:
 def _read(name: str, timeout: float) -> dict[str, Any]:
     _ensure_started()
     if not _wait_connected(timeout):
-        raise RuntimeError(
+        raise ToolError(
             f"Not connected to NetworkTables server ({_target()}). "
             "Check robot/sim is running and the team/host configuration."
         )
@@ -99,7 +100,7 @@ def _read(name: str, timeout: float) -> dict[str, Any]:
     while not topic.exists() and time.monotonic() < deadline:
         time.sleep(0.05)
     if not topic.exists():
-        raise KeyError(f"Topic not found: {name}")
+        raise ToolError(f"Topic not found: {name}")
     entry = topic.getGenericEntry()
     # Allow the first value to arrive after subscribing.
     deadline = time.monotonic() + timeout
@@ -165,7 +166,7 @@ def list_topics(prefix: str = "/", timeout: float = 3.0) -> list[dict[str, str]]
     """
     _ensure_started()
     if not _wait_connected(timeout):
-        raise RuntimeError(f"Not connected to NetworkTables server ({_target()}).")
+        raise ToolError(f"Not connected to NetworkTables server ({_target()}).")
     time.sleep(0.3)  # let announcements arrive
     return sorted(
         (
@@ -189,7 +190,7 @@ def get_values(names: list[str], timeout: float = 3.0) -> list[dict[str, Any]]:
     for n in names:
         try:
             out.append(_read(n, timeout))
-        except Exception as e:  # noqa: BLE001
+        except ToolError as e:
             out.append({"name": n, "error": str(e)})
     return out
 
@@ -209,7 +210,7 @@ def set_value(name: str, value: Any, type: str | None = None) -> dict[str, Any]:
     if type is None:
         type = topic.getTypeString() if topic.exists() else _infer(value)
     if type not in _MAKERS:
-        raise ValueError(f"Unsupported type '{type}'. Supported: {sorted(_MAKERS)}")
+        raise ToolError(f"Unsupported type '{type}'. Supported: {sorted(_MAKERS)}")
     if type == "raw":
         value = bytes.fromhex(value)
     cached = _publishers.get(name)
@@ -224,7 +225,7 @@ def set_value(name: str, value: Any, type: str | None = None) -> dict[str, Any]:
 def _infer(value: Any) -> str:
     if isinstance(value, list):
         if not value:
-            raise ValueError("Cannot infer type of empty list; pass `type`.")
+            raise ToolError("Cannot infer type of empty list; pass `type`.")
         return _infer(value[0]) + "[]"
     if isinstance(value, bool):
         return "boolean"
@@ -232,16 +233,17 @@ def _infer(value: Any) -> str:
         return "double"
     if isinstance(value, str):
         return "string"
-    raise ValueError(f"Cannot infer NT type for {value!r}; pass `type`.")
+    raise ToolError(f"Cannot infer NT type for {value!r}; pass `type`.")
 
 
 @mcp.tool()
 def unpublish(name: str) -> dict[str, Any]:
     """Stop publishing a topic previously created with set_value."""
+    # ntcore publishers have no close(); dropping the last reference releases the handle.
     cached = _publishers.pop(name, None)
-    if cached:
-        cached[1].close()
-    return {"name": name, "unpublished": cached is not None}
+    unpublished = cached is not None
+    del cached
+    return {"name": name, "unpublished": unpublished}
 
 
 if __name__ == "__main__":
