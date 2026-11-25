@@ -29,6 +29,7 @@ import argparse
 import os
 import subprocess
 import sys
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
@@ -125,12 +126,18 @@ def is_same_path(a: str, b: Path) -> bool:
 
 def tracked_changes(repo: Path) -> bool:
     """True if tracked files have staged or unstaged changes."""
-    return bool(git(repo, "status", "--porcelain", "--untracked-files=no").stdout.strip())
+    return bool(
+        git(repo, "status", "--porcelain", "--untracked-files=no").stdout.strip()
+    )
 
 
 def ahead_behind(repo: Path, b: Branch) -> tuple[int, int]:
     out = git(
-        repo, "rev-list", "--left-right", "--count", f"{b.name}...{b.upstream_ref}",
+        repo,
+        "rev-list",
+        "--left-right",
+        "--count",
+        f"{b.name}...{b.upstream_ref}",
         check=True,
     ).stdout.split()
     return int(out[0]), int(out[1])
@@ -153,9 +160,11 @@ def move_branch(
     if worktree is not None:
         if tracked_changes(worktree):
             return False, "checked out with uncommitted changes"
-        args = ["merge", "--ff-only", b.upstream_ref] if mode == "ff" else [
-            "reset", "--hard", b.upstream_ref
-        ]
+        args = (
+            ["merge", "--ff-only", b.upstream_ref]
+            if mode == "ff"
+            else ["reset", "--hard", b.upstream_ref]
+        )
         proc = git(worktree, *args)
     else:
         new = git(repo, "rev-parse", b.upstream_ref, check=True).stdout.strip()
@@ -167,7 +176,11 @@ def move_branch(
 
 
 def process_branch(
-    repo: Path, b: Branch, dry_run: bool, attention: list[Result], log
+    repo: Path,
+    b: Branch,
+    dry_run: bool,
+    attention: list[Result],
+    log: Callable[[str], None],
 ) -> None:
     if not b.upstream_ref:
         return  # no upstream: never touched
@@ -209,10 +222,15 @@ def process_branch(
     if ahead == 0:
         action, mode = f"fast-forwarded {behind} commit(s)", "ff"
     elif has_local_only_commits(repo, b):
-        flag(f"diverged from {b.upstream} (+{ahead}/-{behind}) with local-only commits, left untouched")
+        flag(
+            f"diverged from {b.upstream} (+{ahead}/-{behind}) with local-only commits, left untouched"
+        )
         return
     else:
-        action, mode = f"reset to {b.upstream} (remote was rewritten, no local-only commits)", "reset"
+        action, mode = (
+            f"reset to {b.upstream} (remote was rewritten, no local-only commits)",
+            "reset",
+        )
 
     if dry_run:
         if worktree is not None and tracked_changes(worktree):
@@ -246,7 +264,11 @@ def process_repo(repo: Path, dry_run: bool) -> tuple[list[str], list[Result]]:
 
     fetch = git(repo, "fetch", "--all", "--prune")
     if fetch.returncode != 0:
-        msg = fetch.stderr.strip().splitlines()[-1] if fetch.stderr.strip() else "fetch failed"
+        msg = (
+            fetch.stderr.strip().splitlines()[-1]
+            if fetch.stderr.strip()
+            else "fetch failed"
+        )
         attention.append(Result(repo.name, "-", f"fetch failed, repo skipped: {msg}"))
         log(red(f"fetch failed, skipped: {msg}"))
         return lines, attention
@@ -254,7 +276,9 @@ def process_repo(repo: Path, dry_run: bool) -> tuple[list[str], list[Result]]:
     try:
         branches = list_branches(repo)
     except subprocess.CalledProcessError as e:
-        attention.append(Result(repo.name, "-", f"could not list branches: {e.stderr.strip()}"))
+        attention.append(
+            Result(repo.name, "-", f"could not list branches: {e.stderr.strip()}")
+        )
         log(red(f"could not list branches: {e.stderr.strip()}"))
         return lines, attention
 
@@ -262,7 +286,9 @@ def process_repo(repo: Path, dry_run: bool) -> tuple[list[str], list[Result]]:
         try:
             process_branch(repo, b, dry_run, attention, log)
         except subprocess.CalledProcessError as e:
-            attention.append(Result(repo.name, b.name, f"git error: {e.stderr.strip()}"))
+            attention.append(
+                Result(repo.name, b.name, f"git error: {e.stderr.strip()}")
+            )
             log(red(f"! {b.name}: git error: {e.stderr.strip()}"))
     return lines, attention
 
@@ -277,10 +303,16 @@ def main(argv: list[str] | None = None) -> int:
         help=f"folder containing your repos (default: {DEFAULT_ROOT})",
     )
     parser.add_argument(
-        "-n", "--dry-run", action="store_true", help="show what would change, change nothing"
+        "-n",
+        "--dry-run",
+        action="store_true",
+        help="show what would change, change nothing",
     )
     parser.add_argument(
-        "-j", "--jobs", type=int, default=DEFAULT_JOBS,
+        "-j",
+        "--jobs",
+        type=int,
+        default=DEFAULT_JOBS,
         help=f"repos to process in parallel (default: {DEFAULT_JOBS})",
     )
     args = parser.parse_args(argv)
@@ -308,7 +340,7 @@ def main(argv: list[str] | None = None) -> int:
             repo = futures[future]
             try:
                 lines, repo_attention = future.result()
-            except Exception as e:  # keep one bad repo from killing the run
+            except Exception as e:  # noqa: BLE001  # keep one bad repo from killing the run
                 lines = [repo.name, red(f"  unexpected error: {e}")]
                 repo_attention = [Result(repo.name, "-", f"unexpected error: {e}")]
             print("\n".join(lines), flush=True)

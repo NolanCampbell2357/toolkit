@@ -72,3 +72,17 @@ Each item is linked individually, so anything already in `~/.claude/` is left al
 1. Drop new configs in `configs/`, Python scripts in `devops/`, MCP configs in `mcps/`, and new skills, agents, commands, or rules in `.claude/`.
 2. Add a line to this README if it needs setup steps.
 3. Commit.
+
+## MCP servers
+
+### `mcps/networktables.py` — FRC NetworkTables 4 client
+
+Tools: `configure`, `connection_status`, `list_topics`, `get_value`, `get_values`, `set_value`, `unpublish`.
+
+Config via env vars: `NT_TEAM` (default `2357`), `NT_HOST` (overrides team, e.g. `localhost` for sim), `NT_PORT`. Also changeable at runtime with the `configure` tool.
+
+Register with Claude Code:
+
+```sh
+claude mcp add networktables -e NT_TEAM=2357 -- uv run --project /Users/nolan/repos/toolkit /Users/nolan/repos/toolkit/mcps/networktables.py
+```
